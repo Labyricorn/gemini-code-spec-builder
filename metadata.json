@@ -1,0 +1,5 @@
+{
+  "name": "Gemini Code Spec Builder",
+  "description": "An application that uses Gemini to collaboratively generate software requirements, design documents, and development tasks with a user. The user starts with an idea, and through a conversational interface, refines and approves each document stage by stage.",
+  "requestFramePermissions": []
+}
