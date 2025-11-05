@@ -1,6 +1,9 @@
-import React, { useState, useCallback } from 'react';
-import { AppStage, ActiveTab, ChatMessage, DocumentState } from './types';
-import * as geminiService from './services/geminiService';
+
+import React, { useState, useCallback, useMemo } from 'react';
+import { AppStage, ActiveTab, ChatMessage, DocumentState, LlmServiceType, LlmService } from './types';
+import { GeminiService } from './services/geminiService';
+import { OllamaService } from './services/ollamaService';
+import { LemonadeService } from './services/lemonadeService';
 import { TabButton } from './components/TabButton';
 import { DocumentDisplay } from './components/DocumentDisplay';
 import { ChatInterface } from './components/ChatInterface';
@@ -13,17 +16,74 @@ interface IdeaStageProps {
   handleGenerateInitialDoc: () => void;
   isLoading: boolean;
   error: string | null;
+  llmServiceType: LlmServiceType;
+  setLlmServiceType: (type: LlmServiceType) => void;
+  ollamaModel: string;
+  setOllamaModel: (model: string) => void;
+  lemonadeModel: string;
+  setLemonadeModel: (model: string) => void;
 }
 
-const IdeaStage: React.FC<IdeaStageProps> = ({ appIdea, setAppIdea, handleGenerateInitialDoc, isLoading, error }) => (
+const IdeaStage: React.FC<IdeaStageProps> = ({ 
+  appIdea, setAppIdea, handleGenerateInitialDoc, isLoading, error,
+  llmServiceType, setLlmServiceType, ollamaModel, setOllamaModel,
+  lemonadeModel, setLemonadeModel
+}) => (
   <div className="flex flex-col items-center justify-center h-screen bg-gray-900 text-white p-4">
     <div className="w-full max-w-2xl text-center">
       <h1 className="text-4xl md:text-5xl font-bold mb-2 bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 to-purple-500">
-        Gemini Code Spec Builder
+        AI Code Spec Builder
       </h1>
       <p className="text-lg text-gray-400 mb-8">Turn your idea into a detailed project plan, one step at a time.</p>
 
       <div className="w-full bg-gray-800 rounded-lg p-6 shadow-lg">
+        <div className="flex justify-center border border-gray-700 rounded-lg p-1 mb-4 bg-gray-900/50">
+          <button
+            onClick={() => setLlmServiceType('gemini')}
+            className={`px-4 py-2 text-sm font-medium rounded-md flex-1 transition-colors ${llmServiceType === 'gemini' ? 'bg-indigo-600 text-white' : 'text-gray-300 hover:bg-gray-700'}`}
+          >
+            Gemini API
+          </button>
+          <button
+            onClick={() => setLlmServiceType('ollama')}
+            className={`px-4 py-2 text-sm font-medium rounded-md flex-1 transition-colors ${llmServiceType === 'ollama' ? 'bg-indigo-600 text-white' : 'text-gray-300 hover:bg-gray-700'}`}
+          >
+            Ollama
+          </button>
+          <button
+            onClick={() => setLlmServiceType('lemonade')}
+            className={`px-4 py-2 text-sm font-medium rounded-md flex-1 transition-colors ${llmServiceType === 'lemonade' ? 'bg-indigo-600 text-white' : 'text-gray-300 hover:bg-gray-700'}`}
+          >
+            Lemonade
+          </button>
+        </div>
+
+        {llmServiceType === 'ollama' && (
+          <div className="mb-4">
+              <input 
+                  type="text"
+                  value={ollamaModel}
+                  onChange={(e) => setOllamaModel(e.target.value)}
+                  placeholder="Enter Ollama model name (e.g., llama3)"
+                  className="w-full bg-gray-700 text-gray-200 p-3 text-center rounded-md border border-gray-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition"
+              />
+              <p className="text-xs text-gray-500 mt-1 text-center">Make sure your local Ollama server is running at http://localhost:11434</p>
+          </div>
+        )}
+        
+        {llmServiceType === 'lemonade' && (
+          <div className="mb-4">
+              <input 
+                  type="text"
+                  value={lemonadeModel}
+                  onChange={(e) => setLemonadeModel(e.target.value)}
+                  placeholder="Enter Lemonade model name (e.g., local-model)"
+                  className="w-full bg-gray-700 text-gray-200 p-3 text-center rounded-md border border-gray-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition"
+              />
+              <p className="text-xs text-gray-500 mt-1 text-center">Make sure your local Lemonade server is running at http://localhost:8000</p>
+          </div>
+        )}
+
         <textarea
           value={appIdea}
           onChange={(e) => setAppIdea(e.target.value)}
@@ -33,12 +93,12 @@ const IdeaStage: React.FC<IdeaStageProps> = ({ appIdea, setAppIdea, handleGenera
         />
         <button
           onClick={handleGenerateInitialDoc}
-          disabled={isLoading || !appIdea.trim()}
+          disabled={isLoading || !appIdea.trim() || (llmServiceType === 'ollama' && !ollamaModel.trim()) || (llmServiceType === 'lemonade' && !lemonadeModel.trim())}
           className="mt-4 w-full flex items-center justify-center bg-indigo-600 text-white font-bold py-3 px-6 rounded-md hover:bg-indigo-700 disabled:bg-gray-600 disabled:cursor-not-allowed transition-all duration-300"
         >
           {isLoading ? <LoadingSpinner /> : 'Generate Requirements'}
         </button>
-        {error && <p className="text-red-400 mt-4">{error}</p>}
+        {error && <p className="text-red-400 mt-4 text-sm">{error}</p>}
       </div>
     </div>
   </div>
@@ -89,7 +149,7 @@ const DocumentStage: React.FC<DocumentStageProps> = ({
     <div className="flex flex-col h-screen bg-gray-900 text-gray-200 p-4 lg:p-6">
       <header className="flex-shrink-0 mb-4 flex justify-between items-center">
         <div>
-          <h1 className="text-2xl font-bold text-white">Gemini Code Spec Builder</h1>
+          <h1 className="text-2xl font-bold text-white">AI Code Spec Builder</h1>
           <p className="text-sm text-gray-400">Your app idea: "{appIdea}"</p>
         </div>
         {allDocsApproved && (
@@ -163,11 +223,37 @@ const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<ActiveTab>('requirements');
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
+  
+  const [llmServiceType, setLlmServiceType] = useState<LlmServiceType>('gemini');
+  const [ollamaModel, setOllamaModel] = useState<string>('llama3');
+  const [lemonadeModel, setLemonadeModel] = useState<string>('');
+
 
   const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
   const [requirementsDoc, setRequirementsDoc] = useState<DocumentState>({ content: '', isApproved: false });
   const [designDoc, setDesignDoc] = useState<DocumentState>({ content: '', isApproved: false });
   const [tasksDoc, setTaskDoc] = useState<DocumentState>({ content: '', isApproved: false });
+
+  const llmService = useMemo<LlmService>(() => {
+    try {
+      if (llmServiceType === 'ollama') {
+        return new OllamaService(ollamaModel);
+      }
+      if (llmServiceType === 'lemonade') {
+        return new LemonadeService(lemonadeModel);
+      }
+      return new GeminiService();
+    } catch (e: any) {
+      setError(e.message);
+      // Return a dummy service to prevent app crash
+      return {
+        generateRequirements: async () => Promise.reject(e),
+        refineDocument: async () => Promise.reject(e),
+        generateDesign: async () => Promise.reject(e),
+        generateTasks: async () => Promise.reject(e),
+      }
+    }
+  }, [llmServiceType, ollamaModel, lemonadeModel]);
   
   const handleGenerateInitialDoc = async () => {
     if (!appIdea.trim()) {
@@ -177,13 +263,13 @@ const App: React.FC = () => {
     setIsLoading(true);
     setError(null);
     try {
-      const { chatResponse, documentContent } = await geminiService.generateRequirements(appIdea);
+      const { chatResponse, documentContent } = await llmService.generateRequirements(appIdea);
       setRequirementsDoc({ content: documentContent, isApproved: false });
       setChatHistory([{ sender: 'gemini', text: chatResponse }]);
       setStage(AppStage.REQUIREMENTS);
       setActiveTab('requirements');
-    } catch (err) {
-      setError('Failed to generate requirements. Please try again.');
+    } catch (err: any) {
+      setError(err.message || 'Failed to generate requirements. Please try again.');
       console.error(err);
     }
     setIsLoading(false);
@@ -201,7 +287,7 @@ const App: React.FC = () => {
           if (activeTab === 'design') currentDoc = designDoc.content;
           if (activeTab === 'tasks') currentDoc = tasksDoc.content;
 
-          const { chatResponse, documentContent } = await geminiService.refineDocument(currentDoc, newChatHistory);
+          const { chatResponse, documentContent } = await llmService.refineDocument(currentDoc, newChatHistory);
           
           setChatHistory(prev => [...prev, { sender: 'gemini', text: chatResponse}]);
 
@@ -209,8 +295,8 @@ const App: React.FC = () => {
           if (activeTab === 'design') setDesignDoc(prev => ({ ...prev, content: documentContent }));
           if (activeTab === 'tasks') setTaskDoc(prev => ({ ...prev, content: documentContent }));
 
-      } catch (err) {
-          setError('Failed to refine document. Please try again.');
+      } catch (err: any) {
+          setError(err.message || 'Failed to refine document. Please try again.');
           console.error(err);
           setChatHistory(prev => prev.slice(0, -1)); // remove user message on failure
       }
@@ -224,14 +310,14 @@ const App: React.FC = () => {
       try {
         if (activeTab === 'requirements' && !requirementsDoc.isApproved) {
             setRequirementsDoc(prev => ({ ...prev, isApproved: true }));
-            const { chatResponse, documentContent } = await geminiService.generateDesign(requirementsDoc.content);
+            const { chatResponse, documentContent } = await llmService.generateDesign(requirementsDoc.content);
             setDesignDoc({ content: documentContent, isApproved: false });
             setChatHistory([{ sender: 'gemini', text: chatResponse }]);
             setStage(AppStage.DESIGN);
             setActiveTab('design');
         } else if (activeTab === 'design' && !designDoc.isApproved) {
             setDesignDoc(prev => ({ ...prev, isApproved: true }));
-            const { chatResponse, documentContent } = await geminiService.generateTasks(requirementsDoc.content, designDoc.content);
+            const { chatResponse, documentContent } = await llmService.generateTasks(requirementsDoc.content, designDoc.content);
             setTaskDoc({ content: documentContent, isApproved: false });
             setChatHistory([{ sender: 'gemini', text: chatResponse }]);
             setStage(AppStage.TASKS);
@@ -240,15 +326,15 @@ const App: React.FC = () => {
             setTaskDoc(prev => ({ ...prev, isApproved: true }));
             setChatHistory(prev => [...prev, { sender: 'gemini', text: "All documents are approved. You can download them from each tab and finish the project when ready." }]);
         }
-      } catch (err) {
-        setError(`Failed to generate the next document. Please try again.`);
+      } catch (err: any) {
+        setError(err.message || `Failed to generate the next document. Please try again.`);
         // Revert approval state on failure
         if (activeTab === 'requirements') setRequirementsDoc(prev => ({ ...prev, isApproved: false }));
         if (activeTab === 'design') setDesignDoc(prev => ({ ...prev, isApproved: false }));
         console.error(err);
       }
       setIsLoading(false);
-  }, [activeTab, requirementsDoc, designDoc, tasksDoc]);
+  }, [activeTab, requirementsDoc, designDoc, tasksDoc, llmService]);
 
   const handleDownload = useCallback(() => {
     const docMap = {
@@ -293,6 +379,12 @@ const App: React.FC = () => {
         handleGenerateInitialDoc={handleGenerateInitialDoc}
         isLoading={isLoading}
         error={error}
+        llmServiceType={llmServiceType}
+        setLlmServiceType={setLlmServiceType}
+        ollamaModel={ollamaModel}
+        setOllamaModel={setOllamaModel}
+        lemonadeModel={lemonadeModel}
+        setLemonadeModel={setLemonadeModel}
       />;
     case AppStage.REQUIREMENTS:
     case AppStage.DESIGN:
@@ -322,6 +414,12 @@ const App: React.FC = () => {
         handleGenerateInitialDoc={handleGenerateInitialDoc}
         isLoading={isLoading}
         error={error}
+        llmServiceType={llmServiceType}
+        setLlmServiceType={setLlmServiceType}
+        ollamaModel={ollamaModel}
+        setOllamaModel={setOllamaModel}
+        lemonadeModel={lemonadeModel}
+        setLemonadeModel={setLemonadeModel}
       />;
   }
 };
